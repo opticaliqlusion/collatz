@@ -149,16 +149,22 @@ def main(args):
 
     return
 
+# example usage:
+#
+# python primality.py --max=9999999999 --mode=random --niters=1000
+# python primality.py --niters=10000
+#
+
 if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser(description='Test a custom Collatz reduction.')
     parser.add_argument('--max', type=int, default=10000,
         help='The maximum value.')
-    parser.add_argument('--niters', type=int, default=10000,
-        help='The number of iterations to do in random mode.')
     parser.add_argument('--mode', choices=['random', 'sequential'], default='sequential',
         help='sum the integers (default: find the max)')
+    parser.add_argument('--niters', type=int, default=10000,
+        help='The number of iterations to do in random mode. Only applicable in random mode.')
 
     args = parser.parse_args()
 
