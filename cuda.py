@@ -3,7 +3,7 @@ import numpy as np
 import math
 import pprint
 import random
-from numba import cuda
+from numba import cuda, int64
 import sympy
 
 primes = None
@@ -20,37 +20,43 @@ STATUS_STOP = 1
 STATUS_CONTINUE = 0
 
 @cuda.jit
-def collatz_reduce(n , coeff, divergence_limit, primes):
+def collatz_reduce(_n, _coeff, _divergence_limit, primes):
 
+    n = int64(_n)
     orig_n = n
+    coeff = int64(_coeff)
+    divergence_limit = int64(_divergence_limit)
 
     # Remove primes smaller than coeff
+    early_return = False
     for p in primes:
         
         if p >= coeff:
             break
 
         while n % p == 0:
-            n = np.uint64(n / p)
-
-    n = np.uint64(n)
+            n = int64(n // int64(p))
+            early_return = True
 
     if n == 1:
         return CONVERGED, 1
 
-    new_n = np.uint64(coeff * n + 1)
+    #if early_return:
+    #    return CONTINUE, n
+
+    new_n = int64(coeff * n + 1)
 
     if new_n > divergence_limit:
-        print('coeff', coeff, 'diverged', orig_n, new_n)
+        #print('coeff', coeff, 'diverged', orig_n, new_n)
         return DIVERGED, new_n
     
     if new_n < n:
-        print('coeff', coeff, 'overflow', orig_n, new_n)
+        #print('coeff', coeff, 'overflow', orig_n, new_n)
         return OVERFLOW, new_n
-    
-    test = np.uint64(new_n - 1)
+
+    test = int64(new_n - 1)
     if test % coeff != 0 or test // coeff != n:
-        print('coeff', coeff, 'overflow2', n, test, new_n)
+        #print('coeff', coeff, 'overflow2', n, test, new_n)
         return OVERFLOW, new_n
 
     return CONTINUE, new_n
@@ -66,15 +72,18 @@ def collatz_cuda(n_arr, coeff, divergence_limit, results, status_flag, primes_ar
 
         turtle = n
         hare = n
+        hare1 = hare
+        hare2 = hare
+        previous_collision = False
 
         # calculate the result
         while True:
 
             status1, turtle = collatz_reduce(turtle, coeff, divergence_limit, primes_array)
-            status2, hare = collatz_reduce(hare, coeff, divergence_limit, primes_array)
-            status2, hare = collatz_reduce(hare, coeff, divergence_limit, primes_array)
+            status2, hare1 = collatz_reduce(hare2, coeff, divergence_limit, primes_array)
+            status3, hare2 = collatz_reduce(hare1, coeff, divergence_limit, primes_array)
 
-            if status1 == CONVERGED or status2 == CONVERGED:
+            if status1 == CONVERGED or status2 == CONVERGED or status3 == CONVERGED:
                 result = CONVERGED  # Converged
                 break 
             
@@ -85,12 +94,17 @@ def collatz_cuda(n_arr, coeff, divergence_limit, results, status_flag, primes_ar
 
             if status1 == OVERFLOW or status2 == OVERFLOW:
                 result = OVERFLOW
-                break
-            
-            if turtle == hare: # loop detected
-                result = LOOP_DETECTED
                 status_flag[0] = STATUS_STOP
                 break
+            
+            if turtle == hare2: # loop detected
+                if not previous_collision:
+                    previous_collision = True # you get one pass
+                else:
+                    #print('Looped processing ', coeff, n, turtle, hare1, hare2)
+                    result = LOOP_DETECTED
+                    status_flag[0] = STATUS_STOP
+                    break
             
             if status_flag[0] != 0:
                 result = ABANDONED
@@ -125,7 +139,7 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
         if method == 'random':
             print(f'[C_{coeff}] Sampling random integers in the interval ({ele_min}[2^{int(math.log(ele_min,2))}], {ele_max}[2^{int(math.log(ele_max,2))})')
             for idx in range(len(n_arr)):
-                n_arr[idx] = random.randint(ele_min, ele_max)
+                n_arr[idx] = int64(random.randint(ele_min, ele_max))
         elif method == 'serial':
             if ele_max != None:
                 raise Exception('Serial tests do not incorporate ele_max, they use ele_min + test_size')
@@ -137,6 +151,7 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
 
         blocks_per_grid = math.ceil(n_arr.size / threads_per_block)
         collatz_cuda[blocks_per_grid, threads_per_block](n_arr, coeff, divergence_limit, result_arr, status_flag, primes)
+        #collatz_cuda[1, 1](n_arr, coeff, divergence_limit, result_arr, status_flag, primes)
         
         if np.all(result_arr == 1):
             results[coeff] = "All numbers converged"
@@ -150,6 +165,9 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
             results[coeff] = f"Failed - {num_looped} looped, {num_diverged} diverged, {num_overflows} overflows, {num_abandoned} abandoned, {num_uninitialized} uninitialized"
 
         print(f'Partial result for {coeff} : {results[coeff]}')
+
+        if coeff == 3 and results[coeff] != "All numbers converged":
+            raise Exception('Control failure.')
 
     return results
 
@@ -171,7 +189,7 @@ def _collatz(coefficient, n):
                 break
 
             while n % p == 0:
-                n = n / p
+                n = n // p
 
         if n == 1:
             break
@@ -193,9 +211,9 @@ def _collatz(coefficient, n):
     print(f'Done at {n}. Largest number of bits in reduction: {largest_log}')
     return
 
-#
-#_collatz(15, 9634594367537446 );  sys.exit(0)
-#
+
+#_collatz(5, 1063403535192365 );  sys.exit(0)
+
 
 # which coefficients (we only test odd ones)
 MIN_COEFFICIENT = 3
@@ -208,8 +226,8 @@ DIVERGENCE_CAP = 2**62
 NUM_TESTS = 100000
 
 # the bounds for the random elements we generate to test
-RANDOM_ELEMENT_MIN = 2**53
-RANDOM_ELEMENT_MAX = 2**54 - 1
+RANDOM_ELEMENT_MIN = 2**48
+RANDOM_ELEMENT_MAX = 2**50 - 1
 
 # perform the random tests!
 random_test_results = test_coefficients_gpu(MIN_COEFFICIENT, MAX_COEFFICIENT, NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
@@ -226,6 +244,6 @@ print(f'Coeffs in random but not in serial: {set(random_sequence).difference(set
 print(f'Coeffs in serial but not in random: {set(serial_sequence).difference(set(random_sequence))}')
 print(f'Intersection: {sorted(list(set(serial_sequence).intersection(set(random_sequence))))}')
 
-import pdb;pdb.set_trace()
+#import pdb;pdb.set_trace()
 
 pass
