@@ -9,8 +9,11 @@ In this generalization, $3x+1$ is $C_3$. Larger coefficients, such as $C_5$, rem
 For example, $C_7$ is:
 
 $ x / 5 $ if $x \equiv 0 \pmod{5}$
+
 $ x / 3 $ if $x \equiv 0 \pmod{3}$
+
 $ x / 2 $ if $x \equiv 0 \pmod{2}$
+
 otherwise $ 7x +1 $
 
 
