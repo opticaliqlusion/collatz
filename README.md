@@ -2,19 +2,19 @@
 
 ###### Description
 
-This script tests a generalization of the Collatz conjecture, that is, the "$3x+1$ problem."
+This script tests a generalization of the Collatz conjecture, that is, the " $3x+1$ problem. "
 
 In this generalization, $3x+1$ is $C_3$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C. For example, $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 3$.
 
 For example, $C_7$ is:
 
-$ x / 5 $ if $x \equiv 0 \pmod{5}$
+$x / 5$ if $x \equiv 0 \pmod{5}$
 
-$ x / 3 $ if $x \equiv 0 \pmod{3}$
+$x / 3$ if $x \equiv 0 \pmod{3}$
 
-$ x / 2 $ if $x \equiv 0 \pmod{2}$
+$x / 2$ if $x \equiv 0 \pmod{2}$
 
-otherwise $ 7x +1 $
+otherwise $7x+1$
 
 
 This generalization produces several well-behaved functions. In this script, $C_3$ (obviously), $C_5$, $C_7$, and $C_{25}$ are observed to "converge", or every element tested in reduction (tens of millions in sequence and in random) converge to the trivial loop surrounding 1. However, other functions, such as $C_9$, $C_{11}$, $C_{13}$ form non-trivial loops, and thus do not converge.
@@ -23,7 +23,7 @@ The computed sequence of converging coefficients $\hat{C}$ computed here is:
 
 $\hat{C} = \{3, 5, 7, 25, 29, 41,...\}$
 
-The plan was to compute the sequence of converging functions $C_n$ and compare the sequence to the OEIS.Perhaps in expanding the set of problems to investigate we can learn something about the Collatz conjecture. Unfortunately, the sequence calculated here seems to be, unfortunately, "novel."
+The plan was to compute the sequence of converging functions $C_n$ and compare the sequence to the OEIS. Perhaps in expanding the set of problems to investigate we can learn something about the Collatz conjecture. Unfortunately, the sequence calculated here seems to be, unfortunately, "novel."
 
 ###### Approach
 
