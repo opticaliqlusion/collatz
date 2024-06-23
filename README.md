@@ -4,7 +4,7 @@
 
 This script tests a generalization of the Collatz conjecture, that is, the " $3x+1$ problem. "
 
-In this generalization, $3x+1$ is $C_3$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C. For example, $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 3$.
+In this generalization, $3x+1$ is $C_3$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C. For example, $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 0 \pmod 3$.
 
 For example, $C_7$ is:
 
