@@ -5,6 +5,7 @@ import pprint
 import random
 from numba import cuda, int64, jit
 import sympy
+import time
 
 
 primes = None
@@ -20,7 +21,7 @@ MAX_COEFFICIENT = 128
 DIVERGENCE_CAP = 2**62
 
 # how many tests we run per coefficient
-NUM_TESTS = 10000000
+NUM_TESTS = 100000000
 
 # the bounds for the random elements we generate to test
 RANDOM_ELEMENT_MIN = 2**48
@@ -31,7 +32,7 @@ RANDOM_ELEMENT_MAX = 2**50 - 1
 RANDOM_CPU_ELEMENT_MIN = 2**511
 RANDOM_CPU_ELEMENT_MAX = 2**512
 
-UNINITIALIZED = -1
+UNINITIALIZED = 4294967295
 CONTINUE = 0
 CONVERGED = 1
 DIVERGED = 2
@@ -112,7 +113,6 @@ def collatz_cuda(n_arr, coeff, divergence_limit, results, status_flag, primes_ar
             
             if status1 == DIVERGED or status2 == DIVERGED:
                 result = DIVERGED
-                status_flag[0] = STATUS_STOP
                 break
 
             if status1 == OVERFLOW or status2 == OVERFLOW:
@@ -139,12 +139,12 @@ def collatz_cuda(n_arr, coeff, divergence_limit, results, status_flag, primes_ar
         raise Exception()
 
 
-def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, ele_min, ele_max, method=None):
+def test_coefficients_gpu(coeffs, test_size, divergence_limit, ele_min, ele_max, method=None):
 
     results = {}
     threads_per_block = 1024
 
-    for coeff in range(start_coeff, end_coeff + 1, 2):
+    for coeff in coeffs:
 
         # our list of primes
         primes = np.array(list(sympy.sieve.primerange(coeff)))
@@ -159,6 +159,7 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
         status_flag = np.full(1, 0)
 
         # fill the array with random elements of the appropriate size
+        t1 = time.time()
         if method == 'random':
             print(f'[C_{coeff}] Sampling random integers in the interval ({ele_min}[2^{int(math.log(ele_min,2))}], {ele_max}[2^{int(math.log(ele_max,2))}])')
             for idx in range(len(n_arr)):
@@ -171,26 +172,24 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
                 n_arr[idx] = ele_min+idx
         else:
             raise Exception('Unknown method')
+        print(f'[C_{coeff}] took {time.time() - t1} seconds.')
 
         blocks_per_grid = math.ceil(n_arr.size / threads_per_block)
         collatz_cuda[blocks_per_grid, threads_per_block](n_arr, coeff, divergence_limit, result_arr, status_flag, primes)
-        #collatz_cuda[1, 1](n_arr, coeff, divergence_limit, result_arr, status_flag, primes)
         
-        if np.all(result_arr == 1):
+        if np.all(result_arr == CONVERGED):
             results[coeff] = "All numbers converged"
         else:
             num_looped = np.count_nonzero(result_arr == LOOP_DETECTED)
             num_diverged = np.count_nonzero(result_arr == DIVERGED)
             num_abandoned = np.count_nonzero(result_arr == ABANDONED)
-            num_uninitialized = np.count_nonzero(result_arr == UNINITIALIZED)
             num_overflows = np.count_nonzero(result_arr == OVERFLOW)
+            num_uninitialized = np.count_nonzero(result_arr == UNINITIALIZED)
 
             results[coeff] = f"Failed - {num_looped} looped, {num_diverged} diverged, {num_overflows} overflows, {num_abandoned} abandoned, {num_uninitialized} uninitialized"
 
-        #print(f'Partial result for {coeff} : {results[coeff]}')
-
         if coeff == 3 and results[coeff] != "All numbers converged":
-            raise Exception('Control failure.')
+            raise Exception(f'Control failure: {results[coeff]}')
 
     return results
 
@@ -249,12 +248,13 @@ def _collatz(coefficient, n):
 #_collatz(5, 1063403535192365 );  sys.exit(0)
 
 # perform the random tests!
-random_test_results = test_coefficients_gpu(MIN_COEFFICIENT, MAX_COEFFICIENT, NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
+coeffs = range(MIN_COEFFICIENT, MAX_COEFFICIENT + 1, 2)
+random_test_results = test_coefficients_gpu(coeffs, NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
 random_sequence = [k for k,v in random_test_results.items() if v == 'All numbers converged']
 print(f'Random Sequence Result: {random_sequence}')
 
 # perform the serial tests on the first N integers
-serial_test_results = test_coefficients_gpu(MIN_COEFFICIENT, MAX_COEFFICIENT, NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
+serial_test_results = test_coefficients_gpu(random_sequence, NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
 serial_sequence = [k for k,v in serial_test_results.items() if v == 'All numbers converged']
 print(f'Serial Sequence Result: {serial_sequence}')
 
