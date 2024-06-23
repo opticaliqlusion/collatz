@@ -6,7 +6,7 @@ This script tests a generalization of the Collatz conjecture, what I'm calling t
 
 The idea is to remove **all** primes smaller than the $C_n x + 1$ coefficient.
 
-In the Strong generalization, $3x+1$ is $C_3$, and removes the small primes $p = \{2\}$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C, that is $p=\{2,3\}$. $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 0 \pmod 3$.
+In the Strong generalization, $3x+1$ is $C_3$, and removes the small primes $p = \set{2}$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C, that is $p=\set{2,3}$. $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 0 \pmod 3$.
 
 Furthermore, $C_7$ is:
 
