@@ -33,8 +33,8 @@ We do three tests - reduce millions of numbers sequentially and with random samp
 
 - These tests were performed on a GTX4080
 - Many of the smaller coefficients that one might expect to converge such as $11, 13, 17$ etc. form non-trivial loops, while the larger coefficients quickly spiral outside the bounds of our GPU calculations.
-- It is interesting that $C_{25}$ seems to converge.
-- See "The $3x+1$ by Lagarias for a deep dive into the problem
+- It is interesting that $C_{25}$ seems to converge
+- See "The $3x+1$  Problem"by Lagarias for a deep dive into the problem - it is an excellent resource
 
 ###### Sample Output
 
