@@ -3,10 +3,33 @@ import numpy as np
 import math
 import pprint
 import random
-from numba import cuda, int64
+from numba import cuda, int64, jit
 import sympy
 
+
 primes = None
+
+# a numbe can only double five times before we call it quits
+DOUBLE_LIMIT = 5 
+
+# which coefficients (we only test odd ones)
+MIN_COEFFICIENT = 3
+MAX_COEFFICIENT = 128
+
+# the cap to stop evaluating due to explosion
+DIVERGENCE_CAP = 2**62
+
+# how many tests we run per coefficient
+NUM_TESTS = 10000000
+
+# the bounds for the random elements we generate to test
+RANDOM_ELEMENT_MIN = 2**48
+RANDOM_ELEMENT_MAX = 2**50 - 1
+
+# the gpu can only test up to ~40ish bits without flirting with oveflow,
+# so do spot-checks for truly huge numbers
+RANDOM_CPU_ELEMENT_MIN = 2**511
+RANDOM_CPU_ELEMENT_MAX = 2**512
 
 UNINITIALIZED = -1
 CONTINUE = 0
@@ -137,7 +160,7 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
 
         # fill the array with random elements of the appropriate size
         if method == 'random':
-            print(f'[C_{coeff}] Sampling random integers in the interval ({ele_min}[2^{int(math.log(ele_min,2))}], {ele_max}[2^{int(math.log(ele_max,2))})')
+            print(f'[C_{coeff}] Sampling random integers in the interval ({ele_min}[2^{int(math.log(ele_min,2))}], {ele_max}[2^{int(math.log(ele_max,2))}])')
             for idx in range(len(n_arr)):
                 n_arr[idx] = int64(random.randint(ele_min, ele_max))
         elif method == 'serial':
@@ -164,7 +187,7 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
 
             results[coeff] = f"Failed - {num_looped} looped, {num_diverged} diverged, {num_overflows} overflows, {num_abandoned} abandoned, {num_uninitialized} uninitialized"
 
-        print(f'Partial result for {coeff} : {results[coeff]}')
+        #print(f'Partial result for {coeff} : {results[coeff]}')
 
         if coeff == 3 and results[coeff] != "All numbers converged":
             raise Exception('Control failure.')
@@ -175,13 +198,18 @@ def test_coefficients_gpu(start_coeff, end_coeff, test_size, divergence_limit, e
 # Use this function to debug individual elements with arbitrary precision on the CPU
 def _collatz(coefficient, n):
     primes = list(sympy.sieve.primerange(coefficient))
-    last_log = 0
-    largest_log = 0
+    last_log = int(math.log(n, 2))
+    largest_log = int(math.log(n, 2))
+
+    did_double = 0
 
     seen = []
 
+    print(f'CPU Testing coefficient {coefficient}')
+
     while True:
         seen.append(n)
+        
         # Remove primes smaller than coeff
         for p in primes:
             
@@ -198,51 +226,50 @@ def _collatz(coefficient, n):
 
         if n in seen:
             print('Loop detected.')
+            raise Exception('LOOOOOOP')
             break
 
         if int(math.log(n, 2)) > largest_log:    
             largest_log = int(math.log(n, 2))
 
-        if int(math.log(n, 2)) != last_log:
+        if int(math.log(n, 2)) >= last_log * 2: # x doubled in bits
             last_log = int(math.log(n, 2))
-            print(f'N size changed to {last_log}')
+            print(f'N doubled in bits to {last_log}')
+            did_double += 1
+            if did_double >= DOUBLE_LIMIT:
+                raise Exception(f'coefficient {coefficient} failed the Arbitrary precision CPU audit ')
 
+        elif int(math.log(n, 2))<= last_log / 2 :  # x halved in bits
+            last_log = int(math.log(n, 2))
+            print(f'N halved in bits to {last_log}')
 
     print(f'Done at {n}. Largest number of bits in reduction: {largest_log}')
     return
 
-
 #_collatz(5, 1063403535192365 );  sys.exit(0)
-
-
-# which coefficients (we only test odd ones)
-MIN_COEFFICIENT = 3
-MAX_COEFFICIENT = 256
-
-# the cap to stop evaluating due to explosion
-DIVERGENCE_CAP = 2**62
-
-# how many tests we run per coefficient
-NUM_TESTS = 100000
-
-# the bounds for the random elements we generate to test
-RANDOM_ELEMENT_MIN = 2**48
-RANDOM_ELEMENT_MAX = 2**50 - 1
 
 # perform the random tests!
 random_test_results = test_coefficients_gpu(MIN_COEFFICIENT, MAX_COEFFICIENT, NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
 random_sequence = [k for k,v in random_test_results.items() if v == 'All numbers converged']
-print(f'Resulting sequence: {random_sequence}')
+print(f'Random Sequence Result: {random_sequence}')
 
 # perform the serial tests on the first N integers
 serial_test_results = test_coefficients_gpu(MIN_COEFFICIENT, MAX_COEFFICIENT, NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
 serial_sequence = [k for k,v in serial_test_results.items() if v == 'All numbers converged']
-print(f'Resulting sequence: {serial_sequence}')
+print(f'Serial Sequence Result: {serial_sequence}')
 
-print(f'Sequence equal? {random_sequence == serial_sequence}')
+# perform cpu test
+audit_seq = sorted(list(set(random_sequence).intersection(serial_sequence)))
+
+for coeff in audit_seq:
+    random_start = random.randint(RANDOM_CPU_ELEMENT_MIN, RANDOM_CPU_ELEMENT_MAX)
+    _collatz(coeff, random_start)
+
 print(f'Coeffs in random but not in serial: {set(random_sequence).difference(set(serial_sequence))}')
 print(f'Coeffs in serial but not in random: {set(serial_sequence).difference(set(random_sequence))}')
+
 print(f'Intersection: {sorted(list(set(serial_sequence).intersection(set(random_sequence))))}')
+
 
 #import pdb;pdb.set_trace()
 
