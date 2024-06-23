@@ -1,20 +1,22 @@
-# Generalization of the Collatz Conjecture
+# Generalization of the Collatz Conjecture - "Strong" Collatz
 
 ###### Description
 
-This script tests a generalization of the Collatz conjecture, that is, the " $3x+1$ problem. "
+This script tests a generalization of the Collatz conjecture, what I'm calling the "Strong" Collatz forumla.
 
-In this generalization, $3x+1$ is $C_3$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C. For example, $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 0 \pmod 3$.
+The idea is to remove **all** primes smaller than the $C_n x + 1$ coefficient.
 
-For example, $C_7$ is:
+In the Strong generalization, $3x+1$ is $C_3$, and removes the small primes $p = \{2\}$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C, that is $p=\{2,3\}$. $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 0 \pmod 3$.
 
-$x / 5$ if $x \equiv 0 \pmod{5}$
+Furthermore, $C_7$ is:
 
-$x / 3$ if $x \equiv 0 \pmod{3}$
+$C_7(x) = x / 5$ if $x \equiv 0 \pmod{5}$
 
-$x / 2$ if $x \equiv 0 \pmod{2}$
+$C_7(x) = x / 3$ if $x \equiv 0 \pmod{3}$
 
-otherwise $7x+1$
+$C_7(x) = x / 2$ if $x \equiv 0 \pmod{2}$
+
+otherwise $C_7(x) = 7x+1$
 
 
 This generalization produces several well-behaved functions. In this script, $C_3$ (obviously), $C_5$, $C_7$, and $C_{25}$ are observed to "converge", or every element tested in reduction (tens of millions in sequence and in random) converge to the trivial loop surrounding 1. However, other functions, such as $C_9$, $C_{11}$, $C_{13}$ form non-trivial loops, and thus do not converge.
