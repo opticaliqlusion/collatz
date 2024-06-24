@@ -21,7 +21,7 @@ MAX_COEFFICIENT = 128
 DIVERGENCE_CAP = 2**62
 
 # how many tests we run per coefficient
-NUM_TESTS = 100000000
+NUM_TESTS = 10000000
 
 # the bounds for the random elements we generate to test
 RANDOM_ELEMENT_MIN = 2**48
@@ -161,18 +161,19 @@ def test_coefficients_gpu(coeffs, test_size, divergence_limit, ele_min, ele_max,
         # fill the array with random elements of the appropriate size
         t1 = time.time()
         if method == 'random':
+            print(f'------ Random [{coeff}] ------')
             print(f'[C_{coeff}] Sampling random integers in the interval ({ele_min}[2^{int(math.log(ele_min,2))}], {ele_max}[2^{int(math.log(ele_max,2))}])')
             for idx in range(len(n_arr)):
                 n_arr[idx] = int64(random.randint(ele_min, ele_max))
         elif method == 'serial':
             if ele_max != None:
                 raise Exception('Serial tests do not incorporate ele_max, they use ele_min + test_size')
+            print(f'------ Serial [{coeff}] ------')
             print(f'[C_{coeff}] Testing {len(n_arr)} integers in serial beginning at {ele_min}')
             for idx in range(len(n_arr)):
                 n_arr[idx] = ele_min+idx
         else:
             raise Exception('Unknown method')
-        print(f'[C_{coeff}] took {time.time() - t1} seconds.')
 
         blocks_per_grid = math.ceil(n_arr.size / threads_per_block)
         collatz_cuda[blocks_per_grid, threads_per_block](n_arr, coeff, divergence_limit, result_arr, status_flag, primes)
@@ -187,6 +188,9 @@ def test_coefficients_gpu(coeffs, test_size, divergence_limit, ele_min, ele_max,
             num_uninitialized = np.count_nonzero(result_arr == UNINITIALIZED)
 
             results[coeff] = f"Failed - {num_looped} looped, {num_diverged} diverged, {num_overflows} overflows, {num_abandoned} abandoned, {num_uninitialized} uninitialized"
+
+        print(f'[C_{coeff}] {results[coeff]}')
+        print(f'[C_{coeff}] took {time.time() - t1} seconds.')
 
         if coeff == 3 and results[coeff] != "All numbers converged":
             raise Exception(f'Control failure: {results[coeff]}')

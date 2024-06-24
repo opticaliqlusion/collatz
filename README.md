@@ -1,10 +1,12 @@
-# Generalization of the Collatz Conjecture - "Strong" Collatz
+#  "Strong" Generalization of the Collatz Conjecture
 
 ###### Description
 
-This script tests a generalization of the Collatz conjecture, what I'm calling the "Strong" Collatz forumla.
+This script tests a generalization of the Collatz conjecture, what I'm calling "Strong" Collatz reduction.
 
-The idea is to remove **all** primes smaller than the $C_n x + 1$ coefficient.
+Recall the classic Collatz conjecture removes the prime $2$ if $x \equiv 0 \pmod 2$ otherwise $C_3(x) = 3x+1$. The classic conjecture states that any integer reduced in this manner eventually reduces to $1$ under iteration.
+
+The idea under "strong" reduction is to remove **all** primes smaller than the $C_n x + 1$ coefficient. We will attempt to calculate which coefficents "converge" in the same manner as the classic formula.
 
 In the Strong generalization, $3x+1$ is $C_3$, and removes the small primes $p = \set{2}$. Larger coefficients, such as $C_5$, remove all primes congruent $x$ smaller than C, that is $p=\set{2,3}$. $C_5$ not only divides $x$ by $2$ if it is even, but also divides $x$ by $3$ if $x \equiv 0 \pmod 3$.
 
@@ -21,6 +23,14 @@ otherwise $C_7(x) = 7x+1$
 
 This generalization produces several well-behaved functions. In this script, $C_3$ (obviously), $C_5$, $C_7$, and $C_{25}$ are observed to "converge", or every element tested in reduction (tens of millions in sequence and in random) converge to the trivial loop surrounding 1. However, other functions, such as $C_9$, $C_{11}$, $C_{13}$ form non-trivial loops, and thus do not converge.
 
+The coefficient $C_n$ creates a function behaving in one of the three following ways:
+
+* **Converge**: The function resulting from the coefficient $C_n$ reduces, under iteration, every integer to $1$, resembling the classic $3x+1$ problem.
+* **Diverge**: The function causes integers to "explode", and increase rapidly under iteration, with no limit. This is observed in other Collatz-related problems.
+* **Non-Trivial Loop**: The function creates more than one non-trivial loop. That is, an integer under iteration can enter a loop that prevents the iteration from ever reducing to 1. This is the common failure under our "Strong" generalization.
+
+###### Results
+
 The computed sequence of converging coefficients $\hat{C}$ computed here is:
 
 $\hat{C} = \{3, 5, 7, 25, 29, 41,...\}$
@@ -29,13 +39,17 @@ The plan was to compute the sequence of converging functions $C_n$ and compare t
 
 ###### Approach
 
-We do three tests - reduce millions of numbers sequentially and with random sampling of the largest numbers we can handle (up to 50 bits or so). Then, once we have set of candidate coefficients, we attempt to reduce truly large numbers (>100 bits) in python with the arbitrary precision libraries.
+We do three tests
+1. Reduce millions of random integers of the largest size we can handle (up to 50 bits or so)
+2. Reduce every integer from $1$ to `BIG_N` for each candidate coefficient
+2. Finally, for each $C_n$ remaining, we attempt to reduce truly large numbers (>500 bits) in python with the arbitrary precision libraries
 
 ###### Notes
 
 - These tests were performed on a GTX4080
 - Many of the smaller coefficients that one might expect to converge such as $11, 13, 17$ etc. form non-trivial loops, while the larger coefficients quickly spiral outside the bounds of our GPU calculations.
 - It is interesting that $C_{25}$ seems to converge
+- $C_{33}$ is tricky, and only very rarely loops, even when testing hundreds of millions of 50 bit numbers - this is worrying as, although we have never seen $C_{25}$ form a non-trivial loop, it could be lurking out there in the large integers. Future implementations of this script will inject known poison integers which show $C_{33}$ to loop
 - See "The $3x+1$  Problem"by Lagarias for a deep dive into the problem - it is an excellent resource
 
 ###### Sample Output
