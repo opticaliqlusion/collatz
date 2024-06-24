@@ -240,14 +240,16 @@ def _collatz(coefficient, n):
             print(f'N doubled in bits to {last_log}')
             did_double += 1
             if did_double >= DOUBLE_LIMIT:
-                raise Exception(f'coefficient {coefficient} failed the Arbitrary precision CPU audit ')
+                #raise Exception(f'coefficient {coefficient} failed the Arbitrary precision CPU audit ')
+                print(f'coefficient {coefficient} failed the Arbitrary precision CPU audit ')
+                return False
 
         elif int(math.log(n, 2))<= last_log / 2 :  # x halved in bits
             last_log = int(math.log(n, 2))
             print(f'N halved in bits to {last_log}')
 
     print(f'Done at {n}. Largest number of bits in reduction: {largest_log}')
-    return
+    return True
 
 #_collatz(5, 1063403535192365 );  sys.exit(0)
 
@@ -265,16 +267,14 @@ print(f'Serial Sequence Result: {serial_sequence}')
 # perform cpu test
 audit_seq = sorted(list(set(random_sequence).intersection(serial_sequence)))
 
+final_seq = []
 for coeff in audit_seq:
     random_start = random.randint(RANDOM_CPU_ELEMENT_MIN, RANDOM_CPU_ELEMENT_MAX)
-    _collatz(coeff, random_start)
+    if _collatz(coeff, random_start):
+        final_seq.append(coeff)
 
-print(f'Coeffs in random but not in serial: {set(random_sequence).difference(set(serial_sequence))}')
-print(f'Coeffs in serial but not in random: {set(serial_sequence).difference(set(random_sequence))}')
+print(f'Coeffs random: {random_sequence}')
+print(f'Coeffs in serial: {serial_sequence}')
+print(f'Coeffs that passed the audit: {final_seq}')
 
-print(f'Intersection: {sorted(list(set(serial_sequence).intersection(set(random_sequence))))}')
-
-
-#import pdb;pdb.set_trace()
-
-pass
+print(f'Final result of Collatz coefficients that have converged: {final_seq}')

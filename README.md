@@ -20,14 +20,22 @@ $C_7(x) = x / 2$ if $x \equiv 0 \pmod{2}$
 
 otherwise $C_7(x) = 7x+1$
 
-
-This generalization produces several well-behaved functions. In this script, $C_3$ (obviously), $C_5$, $C_7$, and $C_{25}$ are observed to "converge", or every element tested in reduction (tens of millions in sequence and in random) converge to the trivial loop surrounding 1. However, other functions, such as $C_9$, $C_{11}$, $C_{13}$ form non-trivial loops, and thus do not converge.
-
 The coefficient $C_n$ creates a function behaving in one of the three following ways:
 
 * **Converge**: The function resulting from the coefficient $C_n$ reduces, under iteration, every integer to $1$, resembling the classic $3x+1$ problem.
 * **Diverge**: The function causes integers to "explode", and increase rapidly under iteration, with no limit. This is observed in other Collatz-related problems.
-* **Non-Trivial Loop**: The function creates more than one non-trivial loop. That is, an integer under iteration can enter a loop that prevents the iteration from ever reducing to 1. This is the common failure under our "Strong" generalization.
+* **Non-Trivial Loop**: The function creates at least one non-trivial loop. (A loop is non-trivial if it is not the loop containing $1$) That is, an integer under iteration can enter a loop that prevents the iteration from ever reducing to 1. This is the common failure under our "Strong" generalization.
+
+This generalization produces several well-behaved functions. In this script, $C_3$ (obviously), $C_5$, $C_7$, and $C_{25}$ are observed to "converge", or every element tested in reduction (tens of millions in sequence and in random) converge to the trivial loop surrounding 1. However, other functions, such as $C_9$, $C_{11}$, $C_{13}$ form non-trivial loops, and thus do not converge.
+
+###### Approach
+
+We do three tests
+1. Reduce millions of random integers of the largest size we can handle (up to 50 bits or so)
+2. Reduce every integer from $1$ to `BIG_N` for each candidate coefficient
+2. Finally, for each $C_n$ remaining, we attempt to reduce truly large numbers (>500 bits) in python with the arbitrary precision libraries
+
+What remains are the coefficients that create Strong Collatz functions that converge to $1$ under iteration!
 
 ###### Results
 
@@ -37,24 +45,21 @@ $\hat{C} = \set{3, 5, 7, 25, 29, 41,...}$
 
 The plan was to compute the sequence of converging functions $C_n$ and compare the sequence to the OEIS. Perhaps in expanding the set of problems to investigate we can learn something about the Collatz conjecture. Unfortunately, the sequence calculated here seems to be, unfortunately, "novel."
 
-###### Approach
 
-We do three tests
-1. Reduce millions of random integers of the largest size we can handle (up to 50 bits or so)
-2. Reduce every integer from $1$ to `BIG_N` for each candidate coefficient
-2. Finally, for each $C_n$ remaining, we attempt to reduce truly large numbers (>500 bits) in python with the arbitrary precision libraries
 
 ###### Notes
 
 - These tests were performed on a GTX4080
 - Many of the smaller coefficients that one might expect to converge such as $11, 13, 17$ etc. form non-trivial loops, while the larger coefficients quickly spiral outside the bounds of our GPU calculations.
 - It is interesting that $C_{25}$ seems to converge
-- $C_{33}$ is tricky, and only very rarely loops, even when testing hundreds of millions of 50 bit numbers - this is worrying as, although we have never seen $C_{25}$ form a non-trivial loop, it could be lurking out there in the large integers. Future implementations of this script will inject known poison integers which show $C_{33}$ to loop
+- $C_{33}$ is tricky, and only very rarely loops, even when testing hundreds of millions of 50 bit numbers - this is worrying as, although we have never seen $C_{25}$ form a non-trivial loop, it could be lurking out there in the large integers. Future implementations of this script will inject known poison integers which show $C_{33}$ to loop. $C_{33}$ is almost always shown to create non-trivial loops in the CPU audit, underscoring the importance of that test.
 - See "The $3x+1$  Problem"by Lagarias for a deep dive into the problem - it is an excellent resource
 
 ###### Sample Output
 
+
 ```
+$ python cuda.py
 [C_5] Sampling random integers in the interval (281474976710656[2^48], 1125899906842623[2^50)
 [C_7] Sampling random integers in the interval (281474976710656[2^48], 1125899906842623[2^50)
 [C_9] Sampling random integers in the interval (281474976710656[2^48], 1125899906842623[2^50)
