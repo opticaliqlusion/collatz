@@ -33,7 +33,7 @@ The coefficient $C_n$ creates a function behaving in one of the three following 
 
 The computed sequence of converging coefficients $\hat{C}$ computed here is:
 
-$\hat{C} = \{3, 5, 7, 25, 29, 41,...\}$
+$\hat{C} = \set{3, 5, 7, 25, 29, 41,...}$
 
 The plan was to compute the sequence of converging functions $C_n$ and compare the sequence to the OEIS. Perhaps in expanding the set of problems to investigate we can learn something about the Collatz conjecture. Unfortunately, the sequence calculated here seems to be, unfortunately, "novel."
 
