@@ -59,7 +59,7 @@ The plan was to compute the sequence of converging functions $C_n$ and compare t
 
 
 ```
-PS C:\code\collatz2> python .\cuda.py
+$> python .\cuda.py
 ------ Random [3] ------
 [C_3] Sampling random integers in the interval (281474976710656[2^48], 1125899906842623[2^50])
 C:\Users\John\AppData\Roaming\Python\Python312\site-packages\numba\cuda\cudadrv\devicearray.py:886: NumbaPerformanceWarning: Host array used in CUDA kernel will incur copy overhead to/from device.
