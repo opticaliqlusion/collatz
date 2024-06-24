@@ -21,7 +21,8 @@ MAX_COEFFICIENT = 128
 DIVERGENCE_CAP = 2**62
 
 # how many tests we run per coefficient
-NUM_TESTS = 10000000
+RANDOM_NUM_TESTS = 10000000
+SERIAL_NUM_TESTS = 1000000000
 
 # the bounds for the random elements we generate to test
 RANDOM_ELEMENT_MIN = 2**48
@@ -29,8 +30,8 @@ RANDOM_ELEMENT_MAX = 2**50 - 1
 
 # the gpu can only test up to ~40ish bits without flirting with oveflow,
 # so do spot-checks for truly huge numbers
-RANDOM_CPU_ELEMENT_MIN = 2**511
-RANDOM_CPU_ELEMENT_MAX = 2**512
+RANDOM_CPU_ELEMENT_MIN = 2**2047
+RANDOM_CPU_ELEMENT_MAX = 2**2048-1
 
 UNINITIALIZED = 4294967295
 CONTINUE = 0
@@ -255,12 +256,12 @@ def _collatz(coefficient, n):
 
 # perform the random tests!
 coeffs = range(MIN_COEFFICIENT, MAX_COEFFICIENT + 1, 2)
-random_test_results = test_coefficients_gpu(coeffs, NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
+random_test_results = test_coefficients_gpu(coeffs, RANDOM_NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
 random_sequence = [k for k,v in random_test_results.items() if v == 'All numbers converged']
 print(f'Random Sequence Result: {random_sequence}')
 
 # perform the serial tests on the first N integers
-serial_test_results = test_coefficients_gpu(random_sequence, NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
+serial_test_results = test_coefficients_gpu(random_sequence, SERIAL_NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
 serial_sequence = [k for k,v in serial_test_results.items() if v == 'All numbers converged']
 print(f'Serial Sequence Result: {serial_sequence}')
 
@@ -269,12 +270,14 @@ audit_seq = sorted(list(set(random_sequence).intersection(serial_sequence)))
 
 final_seq = []
 for coeff in audit_seq:
+    t1 = time.time()
     random_start = random.randint(RANDOM_CPU_ELEMENT_MIN, RANDOM_CPU_ELEMENT_MAX)
     if _collatz(coeff, random_start):
         final_seq.append(coeff)
+    print(f'[C_{coeff}] took {time.time() - t1} seconds.')
+
 
 print(f'Coeffs random: {random_sequence}')
 print(f'Coeffs in serial: {serial_sequence}')
 print(f'Coeffs that passed the audit: {final_seq}')
-
 print(f'Final result of Collatz coefficients that have converged: {final_seq}')
