@@ -3,7 +3,7 @@ import numpy as np
 import math
 import pprint
 import random
-from numba import cuda, int64, jit
+from numba import cuda, uint64, jit, uint8, uint32
 import sympy
 import time
 
@@ -18,7 +18,7 @@ MIN_COEFFICIENT = 3
 MAX_COEFFICIENT = 128
 
 # the cap to stop evaluating due to explosion
-DIVERGENCE_CAP = 2**62
+DIVERGENCE_CAP = uint64(2**62)
 
 # how many tests we run per coefficient
 RANDOM_NUM_TESTS = 10000000
@@ -40,6 +40,7 @@ DIVERGED = 2
 LOOP_DETECTED = 3
 ABANDONED = 4
 OVERFLOW = 5
+ERROR = 6
 
 STATUS_STOP = 1
 STATUS_CONTINUE = 0
@@ -47,10 +48,10 @@ STATUS_CONTINUE = 0
 @cuda.jit
 def collatz_reduce(_n, _coeff, _divergence_limit, primes):
 
-    n = int64(_n)
+    n = _n
     orig_n = n
-    coeff = int64(_coeff)
-    divergence_limit = int64(_divergence_limit)
+    coeff = _coeff
+    divergence_limit = _divergence_limit
 
     # Remove primes smaller than coeff
     early_return = False
@@ -60,26 +61,26 @@ def collatz_reduce(_n, _coeff, _divergence_limit, primes):
             break
 
         while n % p == 0:
-            n = int64(n // int64(p))
+            n = n // p
             early_return = True
 
     if n == 1:
         return CONVERGED, 1
 
-    #if early_return:
-    #    return CONTINUE, n
-
-    new_n = int64(coeff * n + 1)
+    if early_return:
+        return CONTINUE, n
+    
+    new_n = coeff * n + 1
 
     if new_n > divergence_limit:
-        #print('coeff', coeff, 'diverged', orig_n, new_n)
+        print('coeff', coeff, 'diverged', new_n)
         return DIVERGED, new_n
     
     if new_n < n:
         #print('coeff', coeff, 'overflow', orig_n, new_n)
         return OVERFLOW, new_n
 
-    test = int64(new_n - 1)
+    test = new_n - 1
     if test % coeff != 0 or test // coeff != n:
         #print('coeff', coeff, 'overflow2', n, test, new_n)
         return OVERFLOW, new_n
@@ -104,9 +105,14 @@ def collatz_cuda(n_arr, coeff, divergence_limit, results, status_flag, primes_ar
         # calculate the result
         while True:
 
-            status1, turtle = collatz_reduce(turtle, coeff, divergence_limit, primes_array)
+            status1, new_turtle = collatz_reduce(turtle, coeff, divergence_limit, primes_array)
             status2, hare1 = collatz_reduce(hare2, coeff, divergence_limit, primes_array)
             status3, hare2 = collatz_reduce(hare1, coeff, divergence_limit, primes_array)
+
+            if idx == 1:
+                print(status1, status2, status3)
+                print(turtle, new_turtle)
+                print(hare1, hare2)
 
             if status1 == CONVERGED or status2 == CONVERGED or status3 == CONVERGED:
                 result = CONVERGED  # Converged
@@ -134,6 +140,13 @@ def collatz_cuda(n_arr, coeff, divergence_limit, results, status_flag, primes_ar
                 result = ABANDONED
                 break
 
+            if new_turtle == turtle:
+                result = ERROR
+                status_flag[0] = STATUS_STOP
+                break
+
+            turtle = new_turtle
+
         results[idx] = result
 
     else:
@@ -154,7 +167,7 @@ def test_coefficients_gpu(coeffs, test_size, divergence_limit, ele_min, ele_max,
         n_arr = np.full(test_size+1, 0, dtype=np.uint64)
 
         # where we will store the result of each calculation
-        result_arr = np.full(test_size+1, UNINITIALIZED, dtype=np.uint32)
+        result_arr = np.full(test_size+1, UNINITIALIZED, dtype=np.uint64)
         
         # an array of a single element, to check tom abandon processing
         status_flag = np.full(1, 0)
@@ -165,7 +178,7 @@ def test_coefficients_gpu(coeffs, test_size, divergence_limit, ele_min, ele_max,
             print(f'------ Random [{coeff}] ------')
             print(f'[C_{coeff}] Sampling random integers in the interval ({ele_min}[2^{int(math.log(ele_min,2))}], {ele_max}[2^{int(math.log(ele_max,2))}])')
             for idx in range(len(n_arr)):
-                n_arr[idx] = int64(random.randint(ele_min, ele_max))
+                n_arr[idx] = uint64(random.randint(ele_min, ele_max))
         elif method == 'serial':
             if ele_max != None:
                 raise Exception('Serial tests do not incorporate ele_max, they use ele_min + test_size')
@@ -186,9 +199,10 @@ def test_coefficients_gpu(coeffs, test_size, divergence_limit, ele_min, ele_max,
             num_diverged = np.count_nonzero(result_arr == DIVERGED)
             num_abandoned = np.count_nonzero(result_arr == ABANDONED)
             num_overflows = np.count_nonzero(result_arr == OVERFLOW)
+            num_error = np.count_nonzero(result_arr == ERROR)
             num_uninitialized = np.count_nonzero(result_arr == UNINITIALIZED)
 
-            results[coeff] = f"Failed - {num_looped} looped, {num_diverged} diverged, {num_overflows} overflows, {num_abandoned} abandoned, {num_uninitialized} uninitialized"
+            results[coeff] = f"Failed - {num_looped} looped, {num_diverged} diverged, {num_overflows} overflows, {num_abandoned} abandoned, {num_error} error, {num_uninitialized} uninitialized"
 
         print(f'[C_{coeff}] {results[coeff]}')
         print(f'[C_{coeff}] took {time.time() - t1} seconds.')
@@ -255,29 +269,31 @@ def _collatz(coefficient, n):
 #_collatz(5, 1063403535192365 );  sys.exit(0)
 
 # perform the random tests!
-coeffs = range(MIN_COEFFICIENT, MAX_COEFFICIENT + 1, 2)
-random_test_results = test_coefficients_gpu(coeffs, RANDOM_NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
-random_sequence = [k for k,v in random_test_results.items() if v == 'All numbers converged']
-print(f'Random Sequence Result: {random_sequence}')
+if __name__ == "__main__":
+    coeffs = range(MIN_COEFFICIENT, MAX_COEFFICIENT + 1, 2)
+    #coeffs = range(MIN_COEFFICIENT, MAX_COEFFICIENT + 1)
+    random_test_results = test_coefficients_gpu(coeffs, RANDOM_NUM_TESTS, DIVERGENCE_CAP, RANDOM_ELEMENT_MIN, RANDOM_ELEMENT_MAX, method='random')
+    random_sequence = [k for k,v in random_test_results.items() if v == 'All numbers converged']
+    print(f'Random Sequence Result: {random_sequence}')
 
-# perform the serial tests on the first N integers
-serial_test_results = test_coefficients_gpu(random_sequence, SERIAL_NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
-serial_sequence = [k for k,v in serial_test_results.items() if v == 'All numbers converged']
-print(f'Serial Sequence Result: {serial_sequence}')
+    # perform the serial tests on the first N integers
+    serial_test_results = test_coefficients_gpu(random_sequence, SERIAL_NUM_TESTS, DIVERGENCE_CAP, 1, None, method='serial')
+    serial_sequence = [k for k,v in serial_test_results.items() if v == 'All numbers converged']
+    print(f'Serial Sequence Result: {serial_sequence}')
 
-# perform cpu test
-audit_seq = sorted(list(set(random_sequence).intersection(serial_sequence)))
+    # perform cpu test
+    audit_seq = sorted(list(set(random_sequence).intersection(serial_sequence)))
 
-final_seq = []
-for coeff in audit_seq:
-    t1 = time.time()
-    random_start = random.randint(RANDOM_CPU_ELEMENT_MIN, RANDOM_CPU_ELEMENT_MAX)
-    if _collatz(coeff, random_start):
-        final_seq.append(coeff)
-    print(f'[C_{coeff}] took {time.time() - t1} seconds.')
+    final_seq = []
+    for coeff in audit_seq:
+        t1 = time.time()
+        random_start = random.randint(RANDOM_CPU_ELEMENT_MIN, RANDOM_CPU_ELEMENT_MAX)
+        if _collatz(coeff, random_start):
+            final_seq.append(coeff)
+        print(f'[C_{coeff}] took {time.time() - t1} seconds.')
 
 
-print(f'Coeffs random: {random_sequence}')
-print(f'Coeffs in serial: {serial_sequence}')
-print(f'Coeffs that passed the audit: {final_seq}')
-print(f'Final result of Collatz coefficients that have converged: {final_seq}')
+    print(f'Coeffs random: {random_sequence}')
+    print(f'Coeffs in serial: {serial_sequence}')
+    print(f'Coeffs that passed the audit: {final_seq}')
+    print(f'Final result of Collatz coefficients that have converged: {final_seq}')

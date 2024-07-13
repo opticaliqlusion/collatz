@@ -26,14 +26,22 @@ The coefficient $C_n$ creates a function behaving in one of the three following 
 
 This generalization produces several well-behaved functions. In this script, $C_3$ (obviously), $C_5$, $C_7$, and $C_{25}$ are observed to "converge", or every element tested in reduction (tens of millions in sequence and in random) converge to the trivial loop surrounding 1. However, other functions, such as $C_9$, $C_{11}$, $C_{13}$ form non-trivial loops, and thus do not converge.
 
-#### Approach
+#### GPU Approach
 
-We do three tests
+We do three tests using `cuda.py`.
 1. Reduce lots of random integers (`RANDOM_NUM_TESTS`, shown below: 10,000,000) of the largest size we can handle (up to 50 bits or so)
 2. Reduce every integer from $1$ to some limit (`SERIAL_NUM_TESTS`, shown below: 1,000,000,000) for each candidate coefficient
 2. Finally, for each $C_n$ remaining, we attempt to reduce truly large numbers (`RANDOM_CPU_ELEMENT_MIN`, shown below: 2048 bits) in python with the arbitrary precision libraries
 
 What remains are the coefficients that create Strong Collatz functions that converge to $1$ under iteration!
+
+#### CPU Approach
+
+We also do CPU tests using `test_25_cpu.py`.
+
+We are limited to the size of the integers we can reduce when testing due to the lack of arbitrary precision libraries on the GPU. Therefore, we will extend the tests with the CPU for more rigorous tests of larger coefficients.
+
+In `test_25_cpu.py` (meant to test the coefficient $C_{25}$), we run $10,000$ tests reducing integers of size $2^{2048}$.
 
 #### Results
 
@@ -44,6 +52,17 @@ $\hat{C} = \set{3, 5, 7, 25, 29, 41,...}$
 The plan was to compute the sequence of converging functions $C_n$ and compare the sequence to the OEIS. Perhaps in expanding the set of problems to investigate we can learn something about the Collatz conjecture. 
 
 This sequence largely agrees with [A058047](https://oeis.org/A058047), with the exception of $C_{25}$.
+
+
+#### Regarding $C_{25}$
+
+Several papers reference the source [4] as the source of a prime-coefficient version of the above generalization. This generalization precludes coefficients which seem to converge, like $C_{25}$. I am unable to find a justification for why one would only choose prime coefficients for Strong Collatz formulae, and in fact am unable to find the source [4] at all. The lack of source material is interesting, as source [4] seems to be the source for generalizations in many papers, such as [3].
+
+* [1] (Lagarias collection 1) https://arxiv.org/pdf/math/0309224 
+* [2] (Lagarias collection 2) https://arxiv.org/pdf/math/0608208
+* [3] (Paper referencing [4]) https://web.mit.edu/rsi/www/pdfs/papers/2004/2004-lesjohn.pdf
+* [4] (Unknown source) Zhang Zhongfu and Yang Shiming. Ying She Shu Lie Wen Ti. Shu Xue Chuan Bo 22 (1998), no. 2, 76–88.  (This is reference #195 in [1])
+
 
 #### Notes
 
@@ -56,7 +75,6 @@ This sequence largely agrees with [A058047](https://oeis.org/A058047), with the 
 - I was surprised to find [A058047](https://oeis.org/A058047), which was obscured from my background researchbecause of $C_{25}$.
 
 #### Sample Output
-
 
 ```
 # Random tests per coefficient: 10M
