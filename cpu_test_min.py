@@ -32,7 +32,7 @@ def _collatz(coefficient, n):
             break
         n = coefficient * n + 1
         if n in seen:
-            raise BadCoefficient('Loop detected.')
+            raise BadCoefficient(f'Loop detected:\n{seen}')
         if n.bit_length() > bit_limit:
             raise BadCoefficient('Diverged.')
     return
