@@ -75,7 +75,7 @@ __global__ void kernel_serial(uint32_t coeff, uint64_t start, uint64_t count,
         BigInt<N_WORDS> n;
         n.set_u64(start + i);
         ReduceResult r = reduce_full(n, coeff, primes, n_primes, max_iter);
-        atomicAdd(&counters[r], 1ULL);
+        atomicAdd((unsigned long long *)&counters[r], 1ULL);
     }
 }
 
@@ -115,7 +115,7 @@ __global__ void kernel_random(uint32_t coeff, curandState *rng_states,
         n.limbs[msb_word] |= 1u << msb_bit;
 
         ReduceResult r = reduce_full(n, coeff, primes, n_primes, max_iter);
-        atomicAdd(&counters[r], 1ULL);
+        atomicAdd((unsigned long long *)&counters[r], 1ULL);
     }
 
     rng_states[tid] = rng;
